@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""places"""
+"""places.py"""
 
 from api.v1.views import app_views
 from flask import abort, jsonify, make_response, request
@@ -77,6 +77,18 @@ def put_place(place_id):
     if not request.get_json():
         return make_response(jsonify({'error': 'Not a JSON'}), 400)
     for attr, val in request.get_json().items():
+        if attr not in ['id', 'user_id', 'city_id', 'created_at',
+                        'updated_at']:
+            setattr(place, attr, val)
+    place.save()
+    return jsonify(place.to_dict())
+
+
+@app_views.route('/places_search', methods=['POST'], strict_slashes=False)
+def post_places_search():
+    """searches for a place"""
+    if request.get_json() is not None:
+        params = request.get_json()
         states = params.get('states', [])
         cities = params.get('cities', [])
         amenities = params.get('amenities', [])
@@ -104,21 +116,9 @@ def put_place(place_id):
             place_amenities = place.amenities
             confirmed_places.append(place.to_dict())
             for amenity in amenity_objects:
-        return jsonify(confirmed_places)
-    else:
-        return make_response(jsonify({'error': 'Not a JSON'}), 400)                if amenity not in place_amenities:
+                if amenity not in place_amenities:
                     confirmed_places.pop()
                     break
-        if attr not in ['id', 'user_id', 'city_id', 'created_at',
-                        'updated_at']:
-        params = request.get_json()
-            setattr(place, attr, val)
-    place.save()
-    if request.get_json() is not None:
-    return jsonify(place.to_dict())
-
-    """searches for a place"""
-
-@app_views.route('/places_search', methods=['POST'], strict_slashes=False)
-def post_places_search():
-
+        return jsonify(confirmed_places)
+    else:
+        return make_response(jsonify({'error': 'Not a JSON'}), 400)

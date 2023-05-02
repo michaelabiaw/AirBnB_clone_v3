@@ -1,90 +1,66 @@
 #!/usr/bin/python3
-"""
-New view for Amenity objects that handles all default Restful API actions
-"""
+"""states.py"""
+
 from api.v1.views import app_views
-from flask import abort, jsonify, request
-from models.city import City
-from models.state import State
+from flask import abort, jsonify, make_response, request
 from models import storage
 from models.amenity import Amenity
 
 
-@app_views.route('/amenities', methods=['GET'],
-                 strict_slashes=False)
-def ALL_Amenities():
-    """Retrieves the list of all Amenity objects"""
-    retrieve = []
-    all_amenities = storage.all('Amenity')
-    for amenities in all_amenities.values():
-        retrieve.append(amenities.to_dict())
-    return jsonify(retrieve)
+@app_views.route('/amenities', methods=['GET'], strict_slashes=False)
+def get_amenities():
+    """get amenity information for all amenities"""
+    amenities = []
+    for amenity in storage.all("Amenity").values():
+        amenities.append(amenity.to_dict())
+    return jsonify(amenities)
 
 
-@app_views.route('/amenities/<amenity_id>', methods=['GET'],
+@app_views.route('/amenities/<string:amenity_id>', methods=['GET'],
                  strict_slashes=False)
-def GET_Amenity(amenity_id):
-    """GET Amenity object, if amenity_id not linked - raise 404 """
+def get_amenity(amenity_id):
+    """get amenity information for specified amenity"""
     amenity = storage.get("Amenity", amenity_id)
     if amenity is None:
         abort(404)
     return jsonify(amenity.to_dict())
 
 
-@app_views.route('/amenities/<amenity_id>', methods=['DELETE'],
+@app_views.route('/amenities/<string:amenity_id>', methods=['DELETE'],
                  strict_slashes=False)
-def DEL_Amenity(amenity_id):
-    """DELETE amenity, raise 404 on error, returns 200 on success"""
+def delete_amenity(amenity_id):
+    """deletes an amenity based on its amenity_id"""
     amenity = storage.get("Amenity", amenity_id)
     if amenity is None:
         abort(404)
-
     amenity.delete()
     storage.save()
-    storage.close()
-    return jsonify({}), 200
+    return (jsonify({}))
 
 
 @app_views.route('/amenities', methods=['POST'], strict_slashes=False)
-def POST_Amenity():
-    """Adds amenity, raise 400 upon error, returns 201 on success"""
-    post_amenity = request.get_json()
-
-    if not request.is_json:
-        abort(400, "Not a JSON")
-
-    name = post_amenity.get('name')
-    if not name:
-        abort(400, "Missing name")
-
-    new_amenity = Amenity(**post_amenity)
-    storage.new(new_amenity)
-
-    new_amenity.save()
-    storage.close()
-    return jsonify(new_amenity.to_dict()), 201
+def post_amenity():
+    """create a new amenity"""
+    if not request.get_json():
+        return make_response(jsonify({'error': 'Not a JSON'}), 400)
+    if 'name' not in request.get_json():
+        return make_response(jsonify({'error': 'Missing name'}), 400)
+    amenity = Amenity(**request.get_json())
+    amenity.save()
+    return make_response(jsonify(amenity.to_dict()), 201)
 
 
-@app_views.route('/amenities/<amenity_id>', methods=['PUT'],
+@app_views.route('/amenities/<string:amenity_id>', methods=['PUT'],
                  strict_slashes=False)
-def PUT_Amenity(amenity_id):
-    """Update amenity, raise 404 on error, 200 on success"""
+def put_amenity(amenity_id):
+    """update an amenity"""
     amenity = storage.get("Amenity", amenity_id)
     if amenity is None:
         abort(404)
-
-    ignore_keys = ["id", "created_at", "updated_at"]
-
-    amenity_info = request.get_json()
-
     if not request.get_json():
-        abort(400, "Not a JSON")
-
-    for key, val in amenity_info.items():
-        if key not in ignore_keys:
-            setattr(amenity, key, val)
-
+        return make_response(jsonify({'error': 'Not a JSON'}), 400)
+    for attr, val in request.get_json().items():
+        if attr not in ['id', 'created_at', 'updated_at']:
+            setattr(amenity, attr, val)
     amenity.save()
-    storage.close()
-
-    return jsonify(amenity.to_dict()), 200
+    return jsonify(amenity.to_dict())
